@@ -5,6 +5,7 @@ const SPEED_MULTIPLIER = 0.02;
 
 function App() {
   const playerOneRef = useRef();
+  const gameAreaRef = useRef();
   const [playerOnePosition, setPlayerOnePosition] = useState({ x: 0, y: 0 });
   const [playerOneDistance, setPlayerOneDistance] = useState(INITIAL_DISTANCE);
   const [pressedKeys, setPressedKeys] = useState({});
@@ -35,12 +36,22 @@ function App() {
       deltaX -= playerOneDistance;
     }
 
-    setPlayerOnePosition((prev) => ({
-      ...prev,
-      x: prev.x + deltaX,
-      y: prev.y + deltaY,
-    }));
-
+    if (
+      playerOneRef.current.getBoundingClientRect().left <
+      gameAreaRef.current.getBoundingClientRect().left
+    ) {
+      setPlayerOnePosition((prev) => ({
+        ...prev,
+        x: gameAreaRef.current.getBoundingClientRect().left,
+        y: prev.y + deltaY,
+      }));
+    } else {
+      setPlayerOnePosition((prev) => ({
+        ...prev,
+        x: prev.x + deltaX,
+        y: prev.y + deltaY,
+      }));
+    }
     setPlayerOneDistance((prev) => {
       if (
         pressedKeys["ArrowUp"] ||
@@ -56,10 +67,6 @@ function App() {
   };
 
   useEffect(() => {
-    console.log(pressedKeys);
-  }, [pressedKeys]);
-
-  useEffect(() => {
     const interval = setInterval(() => {
       return Object.values(pressedKeys).includes(true) && movePlayer();
     }, 16); // Run the movePlayer function approximately every 16ms (60fps)
@@ -67,7 +74,16 @@ function App() {
   }, [pressedKeys]);
 
   useEffect(() => {
-    playerOneRef.current.style.transform = `translate(${playerOnePosition.x}px, ${playerOnePosition.y}px)`;
+    console.log(playerOnePosition);
+    if (
+      playerOneRef.current.getBoundingClientRect().left <
+      gameAreaRef.current.getBoundingClientRect().left
+    ) {
+      playerOneRef.current.style.transform = `translate(${
+        gameAreaRef.current.getBoundingClientRect().left
+      }px, ${playerOnePosition.y}px)`;
+    } else
+      playerOneRef.current.style.transform = `translate(${playerOnePosition.x}px, ${playerOnePosition.y}px)`;
   }, [playerOnePosition]);
 
   useEffect(() => {
@@ -82,10 +98,13 @@ function App() {
 
   return (
     <div className="bg-blue-950 h-screen p-9">
-      <div className="relative w-full h-full outline outline-8  outline-white">
+      <div
+        ref={gameAreaRef}
+        className="relative w-full h-full outline outline-8  outline-white"
+      >
         <div
           ref={playerOneRef}
-          className="w-20 h-20 rounded-full bg-slate-500 transition-all duration-0 ease-in-out"
+          className="absolute top-0 left-0 w-20 h-20 rounded-full bg-slate-500 transition-all duration-0 ease-in-out"
           id="playerOne"
         ></div>
         <div
