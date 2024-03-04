@@ -3,21 +3,22 @@ import React, { useEffect, useRef, useState } from "react";
 const Disc = () => {
   const ref = useRef();
   const [isTouching, setIsTouching] = useState(false);
-  const [speed, setSpeed] = useState(0);
 
   const handleMousemove = (e) => {
     const mousePos = { x: e.clientX, y: e.clientY };
     const discPos = ref.current.getBoundingClientRect();
 
-    const newSpeed = calculateSpeed(
-      mousePos.x,
-      mousePos.y,
-      discPos.x + discPos.width / 2,
-      discPos.y + discPos.height / 2,
-      Date.now()
-    );
+    // doesnt work
 
-    setSpeed(newSpeed);
+    // const newSpeed = calculateSpeed(
+    //   mousePos.x,
+    //   mousePos.y,
+    //   discPos.x + discPos.width / 2,
+    //   discPos.y + discPos.height / 2,
+    //   Date.now()
+    // );
+
+    // setSpeed(newSpeed);
 
     if (isTouchingDisc(mousePos, discPos)) {
       setIsTouching(true);
@@ -42,9 +43,9 @@ const Disc = () => {
 
   useEffect(() => {
     if (isTouching) {
-      console.log(speed);
+      console.log("thoucing");
     }
-  }, [speed, isTouching]);
+  }, [isTouching]);
 
   useEffect(() => {
     document.addEventListener("mousemove", handleMousemove);
@@ -62,15 +63,17 @@ const Disc = () => {
   );
 };
 
-function calculateSpeed(currentX, currentY, lastX, lastY, lastTimestamp) {
-  const deltaTime = Date.now() - lastTimestamp;
-  if (deltaTime > 0) {
-    const distance = Math.sqrt(
-      Math.pow(currentX - lastX, 2) + Math.pow(currentY - lastY, 2)
-    );
-    return distance / deltaTime;
-  }
-  return 0;
-}
+// doesnt work
+
+// function calculateSpeed(currentX, currentY, lastX, lastY, lastTimestamp) {
+//   const deltaTime = Date.now() - lastTimestamp;
+//   if (deltaTime > 0) {
+//     const distance = Math.sqrt(
+//       Math.pow(currentX - lastX, 2) + Math.pow(currentY - lastY, 2)
+//     );
+//     return distance / deltaTime;
+//   }
+//   return 0;
+// }
 
 export default Disc;
