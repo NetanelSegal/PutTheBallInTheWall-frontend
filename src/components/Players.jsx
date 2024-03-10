@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 
 const INITIAL_DISTANCE = 20;
-const SPEED_MULTIPLIER = 0.02;
+const SPEED_MULTIPLIER = 0.01;
 
 const Players = ({ gameAreaRef }) => {
   const playerOneRef = useRef();
@@ -51,6 +51,7 @@ const Players = ({ gameAreaRef }) => {
         y: prev.y + deltaY,
       }));
     }
+
     setPlayerOneDistance((prev) => {
       if (
         pressedKeys["ArrowUp"] ||
