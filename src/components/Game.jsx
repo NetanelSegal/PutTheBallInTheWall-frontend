@@ -17,7 +17,6 @@ const Game = () => {
   const handleKeyDown = (e) => {
     console.log(e);
     setPressedKeys((prev) => ({ ...prev, [e.key]: true }));
-    console.log("pressedKeys:", pressedKeys);
   };
 
   useEffect(() => {
@@ -70,13 +69,11 @@ const Game = () => {
     }
 
     setGameState((prev) => {
-      const updatedPlayers = prev.players.map((player, index) => {
-        return {
-          ...player,
-          x: player.x + deltaX, // Update x position
-          y: player.y + deltaY, // Update y position
-        };
-      });
+      const updatedPlayers = prev.players;
+      updatedPlayers[0] = {
+        x: updatedPlayers[0].x + deltaX, // Update x position
+        y: updatedPlayers[0].y + deltaY, // Update y position
+      };
 
       return { ...prev, players: updatedPlayers };
     });
