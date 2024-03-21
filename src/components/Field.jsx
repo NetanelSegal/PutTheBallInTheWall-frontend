@@ -1,14 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Player from "./Player";
 import Disc from "./Disc";
 import BG from "./BG";
 
-const Field = () => {
+const Field = ({ gameState }) => {
   return (
     <div className="relative w-full h-full outline outline-8  outline-white">
-      <Player />
-      <Player />
-      <Disc />
+      <Player pos={gameState.players[0]} />
+      <Player pos={gameState.players[1]} />
+      <Disc pos={gameState.disc} />
 
       <div
         id="leftWall"
