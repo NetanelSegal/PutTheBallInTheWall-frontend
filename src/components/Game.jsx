@@ -1,11 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import Field from "./Field";
-import { getKissingPoint, isTouchingDisc } from "./functions";
+import {
+  calculateDiscVelocity,
+  getKissingPoint,
+  isTouchingDisc,
+} from "./functions";
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
-const INITIAL_DISTANCE = 1;
+const INITIAL_DISTANCE = 2;
 const SPEED_MULTIPLIER = 0.02;
+const FRICTION = 0.95;
 
 const Game = () => {
   const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
@@ -22,7 +27,7 @@ const Game = () => {
       { x: 0, y: 0 },
       { x: 0, y: 0 },
     ],
-    disc: { x: 0, y: 0 },
+    disc: { x: 0, y: 0, velocity: { x: 0, y: 0 } },
   });
 
   const handleKeyDown = (e) => {
@@ -52,6 +57,7 @@ const Game = () => {
       disc: {
         x: 50 - DISC_WIDTH / 2,
         y: 50 - DISC_WIDTH / 2 - 1.2,
+        velocity: { x: 0, y: 0 },
       },
     }));
   };
@@ -100,19 +106,48 @@ const Game = () => {
 
     if (isTouchingDisc(p1Rect, discRect)) {
       const touchPoint = getKissingPoint(p1Rect, discRect);
-      const reflectedPoint = {
-        x: 2 * discCenter.x - touchPoint.x,
-        y: 2 * discCenter.y - touchPoint.y,
+
+      // const reflectedPoint = {
+      //   x: 2 * discCenter.x - touchPoint.x,
+      //   y: 2 * discCenter.y - touchPoint.y,
+      // };
+
+      const direction = {
+        x: discCenter.x - touchPoint.x,
+        y: discCenter.y - touchPoint.y,
       };
 
-      console.log(speed);
+      const discVelocity = calculateDiscVelocity(direction, speed);
+
       setGameState((prev) => ({
         ...prev,
         disc: {
-          x: reflectedPoint.x * widthConversionFactor * speed,
-          y: reflectedPoint.y * heightConversionFactor * speed,
+          x: prev.disc.x + discVelocity.x,
+          y: prev.disc.y + discVelocity.y,
+          velocity: discVelocity,
         },
       }));
+    } else {
+      setGameState((prev) => {
+        const newDiscPosition = {
+          x: prev.disc.x + prev.disc.velocity.x,
+          y: prev.disc.y + prev.disc.velocity.y,
+        };
+
+        const newVelocity = {
+          x: prev.disc.velocity.x * FRICTION,
+          y: prev.disc.velocity.y * FRICTION,
+        };
+
+        return {
+          ...prev,
+          disc: {
+            x: newDiscPosition.x,
+            y: newDiscPosition.y,
+            velocity: newVelocity,
+          },
+        };
+      });
     }
   };
 
@@ -125,7 +160,7 @@ const Game = () => {
       // console.log(lastTime - currTime);
       lastTime = currTime;
       updateGameState();
-    }, 16); // Call updateGameState every 16ms (roughly 60 FPS)o
+    }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
     return () => clearInterval(gameLoop);
   }, [pressedKeys]);
@@ -144,7 +179,7 @@ const Game = () => {
   }, []);
 
   return (
-    <div className="bg-blue-950 h-screen p-9">
+    <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
       <Field gameState={gameState} refs={[refP1, refP2, refDisc]} />
     </div>
   );

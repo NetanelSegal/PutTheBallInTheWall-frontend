@@ -56,15 +56,9 @@ export const getKissingPoint = (playerPosition, discPosition) => {
     return kissingPoint;
 };
 
-export const calculateDiscVelocity = (discCenter, touchPoint, playerSpeed) => {
-    const direction = {
-        x: discCenter.x - touchPoint.x,
-        y: discCenter.y - touchPoint.y,
-    };
-
+export const calculateDiscVelocity = (direction, playerSpeed) => {
     // Normalize the direction vector (ensure it has a magnitude of 1)
     const magnitude = Math.hypot(direction.x, direction.y);
-
     const normalizedDirection = {
         x: direction.x / magnitude,
         y: direction.y / magnitude,
@@ -80,6 +74,7 @@ export const calculateDiscVelocity = (discCenter, touchPoint, playerSpeed) => {
     return velocity;
 };
 
+
 export const getCenterOfElement = (elem) => {
     const elemRect = elem.getBoundingClientRect();
     return {
@@ -87,3 +82,8 @@ export const getCenterOfElement = (elem) => {
         y: elemRect.top + elemRect.height / 2,
     };
 }
+
+export const calculateImpulseForce = (playerSpeed) => {
+    const impulseFactor = 20; // Adjust this factor for desired push strength
+    return playerSpeed * impulseFactor;
+};
