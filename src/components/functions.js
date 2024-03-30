@@ -87,3 +87,12 @@ export const calculateImpulseForce = (playerSpeed) => {
     const impulseFactor = 20; // Adjust this factor for desired push strength
     return playerSpeed * impulseFactor;
 };
+
+const bufferValue = 10; // Adjust this value as needed
+
+export const getTouchingBorder = (discRect, fieldRect) => {
+    if (discRect.bottom >= fieldRect.bottom) {
+        return "bottom";
+    }
+    // ... rest of the logic
+};

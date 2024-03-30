@@ -8,7 +8,7 @@ const Player = ({ pos, elemRef }) => {
         top: `${pos.y}%`,
       }}
       ref={elemRef}
-      className="absolute aspect-square z-10 w-[8%] rounded-full bg-slate-500 duration-0 ease-in-out transition-all"
+      className="absolute aspect-square z-30 w-[8%] rounded-full bg-slate-500 duration-0 ease-in-out transition-all"
     ></div>
   );
 };

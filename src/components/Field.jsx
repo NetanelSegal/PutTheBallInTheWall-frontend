@@ -2,9 +2,12 @@ import Player from "./Player";
 import Disc from "./Disc";
 import BG from "./BG";
 
-const Field = ({ gameState, refs }) => {
+const Field = ({ gameState, refs, refField }) => {
   return (
-    <div className="relative w-full h-full outline outline-[1vw] outline-white">
+    <div
+      ref={refField}
+      className="relative w-full h-full outline outline-[1vw] outline-white"
+    >
       <Player pos={gameState.players[0]} elemRef={refs[0]} />
       <Player pos={gameState.players[1]} elemRef={refs[1]} />
       <Disc pos={gameState.disc} elemRef={refs[2]} />

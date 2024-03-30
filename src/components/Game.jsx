@@ -3,14 +3,15 @@ import Field from "./Field";
 import {
   calculateDiscVelocity,
   getKissingPoint,
+  getTouchingBorder,
   isTouchingDisc,
 } from "./functions";
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
-const INITIAL_DISTANCE = 2;
+const INITIAL_DISTANCE = 0.8;
 const SPEED_MULTIPLIER = 0.02;
-const FRICTION = 0.95;
+const FRICTION = 0.9;
 
 const Game = () => {
   const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
@@ -19,9 +20,15 @@ const Game = () => {
   const refP1 = useRef();
   const refP2 = useRef();
   const refDisc = useRef();
-  const [isHolding, setIsHolding] = useState(false);
-  const [speed, setSpeed] = useState(INITIAL_DISTANCE);
+  const refField = useRef();
+
+  const [isHoldingKey, setIsHoldingKey] = useState(false);
+  // const [isUsingMouse, setIsUsingMouse] = useState(false);
+
+  const [playerSpeed, setPlayerSpeed] = useState(INITIAL_DISTANCE);
+
   const [pressedKeys, setPressedKeys] = useState({});
+
   const [gameState, setGameState] = useState({
     players: [
       { x: 0, y: 0 },
@@ -30,15 +37,19 @@ const Game = () => {
     disc: { x: 0, y: 0, velocity: { x: 0, y: 0 } },
   });
 
+  // const handleMouseMove = (e) => {
+  //   setIsUsingMouse(true);
+  // };
+
   const handleKeyDown = (e) => {
     setPressedKeys((prev) => ({ ...prev, [e.key]: true }));
-    setIsHolding(true);
+    setIsHoldingKey(true);
   };
 
   const handleKeyUp = (e) => {
     setPressedKeys((prev) => ({ ...prev, [e.key]: false }));
-    setIsHolding(false);
-    setSpeed(INITIAL_DISTANCE);
+    setIsHoldingKey(false);
+    setPlayerSpeed(INITIAL_DISTANCE);
   };
 
   const initialPlayersPosition = () => {
@@ -65,19 +76,18 @@ const Game = () => {
   const updateGameState = () => {
     let deltaX = 0;
     let deltaY = 0;
-
     // Check for pressed arrow keys and update movement deltas
-    if (pressedKeys["ArrowUp"]) {
-      deltaY -= speed; // Player movement distance (adjust as needed)
+    if (pressedKeys["ArrowUp"] || pressedKeys["w"] || pressedKeys["W"]) {
+      deltaY -= playerSpeed; // Player movement distance (adjust as needed)
     }
-    if (pressedKeys["ArrowDown"]) {
-      deltaY += speed;
+    if (pressedKeys["ArrowDown"] || pressedKeys["s"] || pressedKeys["S"]) {
+      deltaY += playerSpeed;
     }
-    if (pressedKeys["ArrowRight"]) {
-      deltaX += speed;
+    if (pressedKeys["ArrowRight"] || pressedKeys["d"] || pressedKeys["D"]) {
+      deltaX += playerSpeed;
     }
-    if (pressedKeys["ArrowLeft"]) {
-      deltaX -= speed;
+    if (pressedKeys["ArrowLeft"] || pressedKeys["a"] || pressedKeys["A"]) {
+      deltaX -= playerSpeed;
     }
 
     setGameState((prev) => {
@@ -93,7 +103,7 @@ const Game = () => {
       };
     });
 
-    if (isHolding) setSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
+    if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
 
     const p1Rect = refP1.current.getBoundingClientRect();
     // const p2Rect = refP2.current.getBoundingClientRect();
@@ -117,7 +127,7 @@ const Game = () => {
         y: discCenter.y - touchPoint.y,
       };
 
-      const discVelocity = calculateDiscVelocity(direction, speed);
+      const discVelocity = calculateDiscVelocity(direction, playerSpeed);
 
       setGameState((prev) => ({
         ...prev,
@@ -129,6 +139,7 @@ const Game = () => {
       }));
     } else {
       setGameState((prev) => {
+        // setting new positions based on velocity
         const newDiscPosition = {
           x: prev.disc.x + prev.disc.velocity.x,
           y: prev.disc.y + prev.disc.velocity.y,
@@ -138,6 +149,20 @@ const Game = () => {
           x: prev.disc.velocity.x * FRICTION,
           y: prev.disc.velocity.y * FRICTION,
         };
+
+        const fieldRect = refField.current.getBoundingClientRect();
+
+        const border = getTouchingBorder(discRect, fieldRect);
+        switch (border) {
+          case "bottom":
+            newVelocity.y *= -1;
+            newDiscPosition.y = newDiscPosition.y - 1;
+            console.log("newVelocity", newVelocity);
+            break;
+
+          default:
+            break;
+        }
 
         return {
           ...prev,
@@ -169,10 +194,12 @@ const Game = () => {
   useEffect(() => {
     initialPlayersPosition();
 
+    // window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
 
     return () => {
+      // window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
@@ -180,7 +207,11 @@ const Game = () => {
 
   return (
     <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
-      <Field gameState={gameState} refs={[refP1, refP2, refDisc]} />
+      <Field
+        refField={refField}
+        gameState={gameState}
+        refs={[refP1, refP2, refDisc]}
+      />
     </div>
   );
 };
