@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import io from 'socket.io-client';
 import Field from "./Field";
 import {
   calculateDiscVelocity,
@@ -12,6 +13,8 @@ const DISC_WIDTH = 5;
 const INITIAL_DISTANCE = 0.8;
 const SPEED_MULTIPLIER = 0.02;
 const FRICTION = 0.9;
+const SOCKET_SERVER_URL = 'http://localhost:3000';
+
 
 const Game = () => {
   const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
@@ -22,9 +25,12 @@ const Game = () => {
   const refDisc = useRef();
   const refField = useRef();
 
+  const [socket, setSocket] = useState(null);
+
+  const [currentPlayerNum , setCurrentPlayerNum] = useState(null);
+
   const [isHoldingKey, setIsHoldingKey] = useState(false);
   // const [isUsingMouse, setIsUsingMouse] = useState(false);
-
   const [playerSpeed, setPlayerSpeed] = useState(INITIAL_DISTANCE);
 
   const [pressedKeys, setPressedKeys] = useState({});
@@ -90,18 +96,25 @@ const Game = () => {
       deltaX -= playerSpeed;
     }
 
+    console.log(currentPlayerNum);
     setGameState((prev) => {
+      const players = prev.players.map((player, index) => {
+        if (index === currentPlayerNum) {
+          return {
+            x: player.x + deltaX,
+            y: player.y + deltaY,
+          };
+        } else {
+          return player;
+        }
+      });
+    
       return {
         ...prev,
-        players: [
-          {
-            x: prev.players[0].x + deltaX, // Update x position
-            y: prev.players[0].y + deltaY, // Update y position
-          },
-          prev.players[1],
-        ],
+        players: players,
       };
     });
+    
 
     if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
 
@@ -178,6 +191,8 @@ const Game = () => {
 
   // game interval
   useEffect(() => {
+    console.log(currentPlayerNum);
+   if(currentPlayerNum == null) return;
     let lastTime = Date.now();
 
     const gameLoop = setInterval(() => {
@@ -186,12 +201,27 @@ const Game = () => {
       lastTime = currTime;
       updateGameState();
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
-
+    
+  
     return () => clearInterval(gameLoop);
-  }, [pressedKeys]);
+  }, [pressedKeys, currentPlayerNum]);
+
+
+  //socket listeners initialization
+  useEffect(()=> {
+    if(!socket) return;
+
+    socket.on("connected", (usersCount) => {
+      setCurrentPlayerNum(usersCount - 1); 
+     });
+  },[socket])
 
   // event listeners & game positions initialization
   useEffect(() => {
+    const newSocket = io(SOCKET_SERVER_URL);
+    setSocket(newSocket);
+
+
     initialPlayersPosition();
 
     // window.addEventListener("mousemove", handleMouseMove);
@@ -199,11 +229,15 @@ const Game = () => {
     window.addEventListener("keyup", handleKeyUp);
 
     return () => {
+      newSocket.disconnect();
       // window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
+
+
+
 
   return (
     <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
