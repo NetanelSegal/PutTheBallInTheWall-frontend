@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import Field from "./Field";
 import {
   calculateDiscVelocity,
+  clamp,
+  getDeltaFromPlayerSpeed,
   getKissingPoint,
   getTouchingBorder,
   isTouchingDisc,
@@ -9,18 +11,18 @@ import {
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
-const INITIAL_DISTANCE = 0.8;
-const SPEED_MULTIPLIER = 0.02;
+const INITIAL_DISTANCE = 2;
+const SPEED_MULTIPLIER = 0.05;
 const FRICTION = 0.9;
 
 const Game = () => {
-  const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
-  const heightConversionFactor = 100 / window.innerHeight; // Percentage per pixel (height)
-
   const refP1 = useRef();
   const refP2 = useRef();
   const refDisc = useRef();
   const refField = useRef();
+
+  const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
+  const heightConversionFactor = 100 / window.innerHeight; // Percentage per pixel (height)
 
   const [isHoldingKey, setIsHoldingKey] = useState(false);
   // const [isUsingMouse, setIsUsingMouse] = useState(false);
@@ -73,35 +75,22 @@ const Game = () => {
     }));
   };
 
-  const updateGameState = () => {
-    let deltaX = 0;
-    let deltaY = 0;
-    // Check for pressed arrow keys and update movement deltas
-    if (pressedKeys["ArrowUp"] || pressedKeys["w"] || pressedKeys["W"]) {
-      deltaY -= playerSpeed; // Player movement distance (adjust as needed)
-    }
-    if (pressedKeys["ArrowDown"] || pressedKeys["s"] || pressedKeys["S"]) {
-      deltaY += playerSpeed;
-    }
-    if (pressedKeys["ArrowRight"] || pressedKeys["d"] || pressedKeys["D"]) {
-      deltaX += playerSpeed;
-    }
-    if (pressedKeys["ArrowLeft"] || pressedKeys["a"] || pressedKeys["A"]) {
-      deltaX -= playerSpeed;
-    }
+  const updateGameState = (PLAYER_HEIGHT) => {
+    const fieldRect = refField.current.getBoundingClientRect();
 
-    setGameState((prev) => {
-      return {
-        ...prev,
-        players: [
-          {
-            x: prev.players[0].x + deltaX, // Update x position
-            y: prev.players[0].y + deltaY, // Update y position
-          },
-          prev.players[1],
-        ],
-      };
-    });
+    let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
+    // Check for pressed arrow keys and update movement deltas
+    console.log(PLAYER_HEIGHT);
+    setGameState((prev) => ({
+      ...prev,
+      players: [
+        {
+          x: clamp(prev.players[0].x + delta.x, 0, 100 - PLAYER_WIDTH), // Update x position
+          y: clamp(prev.players[0].y + delta.y, 0, 100 - PLAYER_HEIGHT), // Update y position
+        },
+        prev.players[1],
+      ],
+    }));
 
     if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
 
@@ -117,17 +106,12 @@ const Game = () => {
     if (isTouchingDisc(p1Rect, discRect)) {
       const touchPoint = getKissingPoint(p1Rect, discRect);
 
-      // const reflectedPoint = {
-      //   x: 2 * discCenter.x - touchPoint.x,
-      //   y: 2 * discCenter.y - touchPoint.y,
-      // };
-
       const direction = {
         x: discCenter.x - touchPoint.x,
         y: discCenter.y - touchPoint.y,
       };
 
-      const discVelocity = calculateDiscVelocity(direction, playerSpeed);
+      const discVelocity = calculateDiscVelocity(direction, playerSpeed * 2);
 
       setGameState((prev) => ({
         ...prev,
@@ -150,14 +134,27 @@ const Game = () => {
           y: prev.disc.velocity.y * FRICTION,
         };
 
-        const fieldRect = refField.current.getBoundingClientRect();
-
         const border = getTouchingBorder(discRect, fieldRect);
+
         switch (border) {
           case "bottom":
             newVelocity.y *= -1;
             newDiscPosition.y = newDiscPosition.y - 1;
-            console.log("newVelocity", newVelocity);
+            break;
+
+          case "top":
+            newVelocity.y *= -1;
+            newDiscPosition.y = newDiscPosition.y + 1;
+            break;
+
+          case "left":
+            newVelocity.x *= -1;
+            newDiscPosition.x = newDiscPosition.x + 1;
+            break;
+
+          case "right":
+            newVelocity.x *= -1;
+            newDiscPosition.x = newDiscPosition.x - 1;
             break;
 
           default:
@@ -178,13 +175,17 @@ const Game = () => {
 
   // game interval
   useEffect(() => {
+    const PLAYER_HEIGHT =
+      (refP1?.current?.getBoundingClientRect().height * 100) /
+      refField.current.getBoundingClientRect().height;
+
     let lastTime = Date.now();
 
     const gameLoop = setInterval(() => {
       const currTime = Date.now();
       // console.log(lastTime - currTime);
       lastTime = currTime;
-      updateGameState();
+      updateGameState(PLAYER_HEIGHT);
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
     return () => clearInterval(gameLoop);

@@ -88,11 +88,46 @@ export const calculateImpulseForce = (playerSpeed) => {
     return playerSpeed * impulseFactor;
 };
 
-const bufferValue = 10; // Adjust this value as needed
-
 export const getTouchingBorder = (discRect, fieldRect) => {
     if (discRect.bottom >= fieldRect.bottom) {
         return "bottom";
     }
+
+    if (discRect.top <= fieldRect.top) {
+        return "top";
+    }
+
+    if (discRect.left <= fieldRect.left) {
+        return "left";
+    }
+
+    if (discRect.right >= fieldRect.right) {
+        return "right";
+    }
     // ... rest of the logic
+};
+
+export const getDeltaFromPlayerSpeed = (pressedKeys, playerSpeed) => {
+    let deltaX = 0;
+    let deltaY = 0;
+
+    if (pressedKeys["ArrowUp"] || pressedKeys["w"] || pressedKeys["W"]) {
+        deltaY -= playerSpeed; // Player movement distance (adjust as needed)
+    }
+    if (pressedKeys["ArrowDown"] || pressedKeys["s"] || pressedKeys["S"]) {
+        deltaY += playerSpeed;
+    }
+    if (pressedKeys["ArrowRight"] || pressedKeys["d"] || pressedKeys["D"]) {
+        deltaX += playerSpeed;
+    }
+    if (pressedKeys["ArrowLeft"] || pressedKeys["a"] || pressedKeys["A"]) {
+        deltaX -= playerSpeed;
+    }
+
+    return { x: deltaX, y: deltaY }
+}
+
+
+export const clamp = (value, min, max) => {
+    return Math.min(Math.max(value, min), max);
 };
