@@ -14,7 +14,7 @@ import {
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
 const INITIAL_DISTANCE = 2;
-const SPEED_MULTIPLIER = 0.05;
+const SPEED_MULTIPLIER = 0.01;
 const FRICTION = 0.9;
 const SOCKET_SERVER_URL = "http://localhost:3000";
 const DISC_GAP_FROM_BORDERS = 1;
@@ -87,17 +87,16 @@ const Game = () => {
     }));
   };
 
-
   const updateGameState = (PLAYER_HEIGHT, DISC_HEIGHT, fieldRect) => {
-     let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
+    let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
 
     // Check for pressed arrow keys and update movement deltas
 
+    let x = gameState.players[currentPlayerNum].x + delta.x;
+    let y = gameState.players[currentPlayerNum].y + delta.y;
+    x = clamp(x, 0, 100 - PLAYER_WIDTH);
+    y = clamp(y, 0, 100 - PLAYER_HEIGHT);
 
-    const x = gameState.players[currentPlayerNum].x + delta.x;
-    const y = gameState.players[currentPlayerNum].y + delta.y;
-    x = clamp(x, 0, 100 - PLAYER_WIDTH)
-    y = clamp(y, 0, 100 - PLAYER_WIDTH)
     if (
       gameState.players[currentPlayerNum].x != x ||
       gameState.players[currentPlayerNum].y != y
@@ -111,7 +110,6 @@ const Game = () => {
       players: prev.players.map((player, index) =>
         index === currentPlayerNum ? { x, y } : player
       ),
-
     }));
 
     if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
@@ -124,7 +122,6 @@ const Game = () => {
 
     const isP1Touch = isTouchingDisc(p1Rect, discRect);
     const isP2Touch = isTouchingDisc(p2Rect, discRect);
-
 
     // is there is a touch
     if (isP1Touch || isP2Touch) {
@@ -200,9 +197,8 @@ const Game = () => {
 
   // game interval
   useEffect(() => {
-
     if (currentPlayerNum == null || !isPlayersConnected) return;
-        const discRect = refDisc.current.getBoundingClientRect();
+    const discRect = refDisc.current.getBoundingClientRect();
     const fieldRect = refField.current.getBoundingClientRect();
     const p1Rect = refP1.current.getBoundingClientRect();
     const fieldHeightConversionFactor = 100 / fieldRect.height; // Percentage per pixel (height)
@@ -210,7 +206,6 @@ const Game = () => {
     const PLAYER_HEIGHT = p1Rect.height * fieldHeightConversionFactor;
 
     const DISC_HEIGHT = discRect.height * fieldHeightConversionFactor;
-
 
     let lastTime = Date.now();
 
