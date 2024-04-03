@@ -3,6 +3,7 @@ import Field from "./Field";
 import {
   calculateDiscVelocity,
   clamp,
+  getCenterOfElement,
   getDeltaFromPlayerSpeed,
   getKissingPoint,
   getTouchingBorder,
@@ -14,15 +15,14 @@ const DISC_WIDTH = 5;
 const INITIAL_DISTANCE = 2;
 const SPEED_MULTIPLIER = 0.05;
 const FRICTION = 0.9;
+const DISC_GAP_FROM_BORDERS = 1;
+const PLAYER_IMPACT_ON_DISC = 3;
 
 const Game = () => {
   const refP1 = useRef();
   const refP2 = useRef();
   const refDisc = useRef();
   const refField = useRef();
-
-  const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
-  const heightConversionFactor = 100 / window.innerHeight; // Percentage per pixel (height)
 
   const [isHoldingKey, setIsHoldingKey] = useState(false);
   // const [isUsingMouse, setIsUsingMouse] = useState(false);
@@ -55,21 +55,26 @@ const Game = () => {
   };
 
   const initialPlayersPosition = () => {
+    const fieldRect = refField?.current?.getBoundingClientRect();
+    const fieldHeightConversionFactor = 100 / fieldRect.height;
+    const discRect = refDisc.current.getBoundingClientRect();
+    const playerOneRect = refP1.current.getBoundingClientRect();
+
     setGameState((prev) => ({
       ...prev,
       players: [
         {
-          x: 25 - PLAYER_WIDTH / 2,
-          y: 50 - (PLAYER_WIDTH * widthConversionFactor) / 2 - 5,
+          x: 20 - PLAYER_WIDTH / 2,
+          y: 50 - (playerOneRect.height * fieldHeightConversionFactor) / 2,
         }, // Centered players (50% of each axis)
         {
-          x: 75 - PLAYER_WIDTH / 2,
-          y: 50 - (PLAYER_WIDTH * heightConversionFactor) / 2 - 5,
+          x: 80 - PLAYER_WIDTH / 2,
+          y: 50 - (playerOneRect.height * fieldHeightConversionFactor) / 2,
         }, // Centered players (50% of each axis)
       ],
       disc: {
         x: 50 - DISC_WIDTH / 2,
-        y: 50 - DISC_WIDTH / 2 - 1.2,
+        y: 50 - (discRect.height * fieldHeightConversionFactor) / 2,
         velocity: { x: 0, y: 0 },
       },
     }));
@@ -77,10 +82,11 @@ const Game = () => {
 
   const updateGameState = (PLAYER_HEIGHT) => {
     const fieldRect = refField.current.getBoundingClientRect();
+    const fieldHeightConversionFactor = 100 / fieldRect.height; // Percentage per pixel (height)
 
     let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
     // Check for pressed arrow keys and update movement deltas
-    console.log(PLAYER_HEIGHT);
+
     setGameState((prev) => ({
       ...prev,
       players: [
@@ -98,10 +104,7 @@ const Game = () => {
     // const p2Rect = refP2.current.getBoundingClientRect();
     const discRect = refDisc.current.getBoundingClientRect();
 
-    const discCenter = {
-      x: discRect.left + discRect.width / 2,
-      y: discRect.top + discRect.height / 2,
-    };
+    const discCenter = getCenterOfElement(discRect);
 
     if (isTouchingDisc(p1Rect, discRect)) {
       const touchPoint = getKissingPoint(p1Rect, discRect);
@@ -110,8 +113,10 @@ const Game = () => {
         x: discCenter.x - touchPoint.x,
         y: discCenter.y - touchPoint.y,
       };
-
-      const discVelocity = calculateDiscVelocity(direction, playerSpeed * 2);
+      const discVelocity = calculateDiscVelocity(
+        direction,
+        playerSpeed * PLAYER_IMPACT_ON_DISC
+      );
 
       setGameState((prev) => ({
         ...prev,
@@ -134,31 +139,29 @@ const Game = () => {
           y: prev.disc.velocity.y * FRICTION,
         };
 
-        const border = getTouchingBorder(discRect, fieldRect);
+        const borders = getTouchingBorder(discRect, fieldRect);
 
-        switch (border) {
-          case "bottom":
-            newVelocity.y *= -1;
-            newDiscPosition.y = newDiscPosition.y - 1;
-            break;
+        const discHeightPrecentge =
+          discRect.height * fieldHeightConversionFactor;
 
-          case "top":
-            newVelocity.y *= -1;
-            newDiscPosition.y = newDiscPosition.y + 1;
-            break;
+        if (borders.bottom) {
+          newVelocity.y *= -1;
+          newDiscPosition.y = 100 - discHeightPrecentge - DISC_GAP_FROM_BORDERS;
+        }
 
-          case "left":
-            newVelocity.x *= -1;
-            newDiscPosition.x = newDiscPosition.x + 1;
-            break;
+        if (borders.top) {
+          newVelocity.y *= -1;
+          newDiscPosition.y = DISC_GAP_FROM_BORDERS;
+        }
 
-          case "right":
-            newVelocity.x *= -1;
-            newDiscPosition.x = newDiscPosition.x - 1;
-            break;
+        if (borders.left) {
+          newVelocity.x *= -1;
+          newDiscPosition.x = DISC_GAP_FROM_BORDERS;
+        }
 
-          default:
-            break;
+        if (borders.right) {
+          newVelocity.x *= -1;
+          newDiscPosition.x = 100 - DISC_WIDTH - DISC_GAP_FROM_BORDERS;
         }
 
         return {

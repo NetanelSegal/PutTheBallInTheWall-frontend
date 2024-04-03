@@ -75,36 +75,30 @@ export const calculateDiscVelocity = (direction, playerSpeed) => {
 };
 
 
-export const getCenterOfElement = (elem) => {
-    const elemRect = elem.getBoundingClientRect();
-    return {
-        x: elemRect.left + elemRect.width / 2,
-        y: elemRect.top + elemRect.height / 2,
-    };
-}
-
-export const calculateImpulseForce = (playerSpeed) => {
-    const impulseFactor = 20; // Adjust this factor for desired push strength
-    return playerSpeed * impulseFactor;
-};
+export const getCenterOfElement = (rect) => ({
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+})
 
 export const getTouchingBorder = (discRect, fieldRect) => {
+    const res = { bottom: false, top: false, right: false, left: false }
     if (discRect.bottom >= fieldRect.bottom) {
-        return "bottom";
+        res["bottom"] = true
     }
 
     if (discRect.top <= fieldRect.top) {
-        return "top";
+        res["top"] = true
     }
 
     if (discRect.left <= fieldRect.left) {
-        return "left";
+        res["left"] = true
     }
 
     if (discRect.right >= fieldRect.right) {
-        return "right";
+        res["right"] = true
     }
-    // ... rest of the logic
+
+    return res
 };
 
 export const getDeltaFromPlayerSpeed = (pressedKeys, playerSpeed) => {
