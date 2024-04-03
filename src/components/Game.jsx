@@ -27,7 +27,7 @@ const Game = () => {
 
   const [socket, setSocket] = useState(null);
 
-  const [currentPlayerNum , setCurrentPlayerNum] = useState(null);
+  const [currentPlayerNum, setCurrentPlayerNum] = useState(null);
 
   const [isHoldingKey, setIsHoldingKey] = useState(false);
   // const [isUsingMouse, setIsUsingMouse] = useState(false);
@@ -95,26 +95,29 @@ const Game = () => {
     if (pressedKeys["ArrowLeft"] || pressedKeys["a"] || pressedKeys["A"]) {
       deltaX -= playerSpeed;
     }
-
     console.log(currentPlayerNum);
-    setGameState((prev) => {
-      const players = prev.players.map((player, index) => {
-        if (index === currentPlayerNum) {
-          return {
-            x: player.x + deltaX,
-            y: player.y + deltaY,
-          };
-        } else {
-          return player;
-        }
-      });
-    
-      return {
-        ...prev,
-        players: players,
-      };
-    });
-    
+    let x;
+    let y;
+    // if( gameState.players[currentPlayerNum]){
+     x = gameState.players[currentPlayerNum].x + deltaX;
+     y = gameState.players[currentPlayerNum].y + deltaY;
+  //  }
+
+    socket.emit("playerMovement", { x, y })
+      
+
+    // console.log(currentPlayerNum);
+    setGameState((prev) => ({
+      ...prev,
+      players: prev.players.map((player, index) =>
+        index === currentPlayerNum ? { x, y, } : player
+      ),
+
+    })
+    );
+
+
+
 
     if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
 
@@ -191,9 +194,10 @@ const Game = () => {
 
   // game interval
   useEffect(() => {
+    if (currentPlayerNum == null || currentPlayerNum === 0) return;
     console.log(currentPlayerNum);
-   if(currentPlayerNum == null) return;
     let lastTime = Date.now();
+
 
     const gameLoop = setInterval(() => {
       const currTime = Date.now();
@@ -201,20 +205,38 @@ const Game = () => {
       lastTime = currTime;
       updateGameState();
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
-    
-  
+
+
     return () => clearInterval(gameLoop);
   }, [pressedKeys, currentPlayerNum]);
 
 
   //socket listeners initialization
-  useEffect(()=> {
-    if(!socket) return;
+  useEffect(() => {
+    if (!socket) return;
 
     socket.on("connected", (usersCount) => {
-      setCurrentPlayerNum(usersCount - 1); 
-     });
-  },[socket])
+      setCurrentPlayerNum(usersCount - 1);
+    });
+
+    // socket.on("playerUpdate", (updatedPlayers) => {
+    //   console.log(updatedPlayers);
+    //   setGameState((prev) => ({
+    //     ...prev,
+    //     players: updatedPlayers,
+    //   }));
+    // });
+
+    socket.on("playerUp", (movementData) => {
+      // Update player 1's movement on player 2's screen
+      setGameState((prev) => ({
+        ...prev,
+        players: prev.players.map((player, index) =>
+          index != currentPlayerNum ? movementData : player
+        ),
+      }))
+    });
+  }, [socket ,currentPlayerNum])
 
   // event listeners & game positions initialization
   useEffect(() => {
