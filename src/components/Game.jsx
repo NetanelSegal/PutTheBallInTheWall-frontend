@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import io from 'socket.io-client';
+import io from "socket.io-client";
 import Field from "./Field";
 import {
   calculateDiscVelocity,
@@ -13,8 +13,7 @@ const DISC_WIDTH = 5;
 const INITIAL_DISTANCE = 0.8;
 const SPEED_MULTIPLIER = 0.02;
 const FRICTION = 0.9;
-const SOCKET_SERVER_URL = 'http://localhost:3000';
-
+const SOCKET_SERVER_URL = "http://localhost:3000";
 
 const Game = () => {
   const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
@@ -24,6 +23,8 @@ const Game = () => {
   const refP2 = useRef();
   const refDisc = useRef();
   const refField = useRef();
+
+  const [isPlayersConnected, setIsPlayersConnected] = useState(false);
 
   const [socket, setSocket] = useState(null);
 
@@ -80,6 +81,8 @@ const Game = () => {
   };
 
   const updateGameState = () => {
+    console.log("currentPlayerNum: ", currentPlayerNum);
+
     let deltaX = 0;
     let deltaY = 0;
     // Check for pressed arrow keys and update movement deltas
@@ -95,34 +98,29 @@ const Game = () => {
     if (pressedKeys["ArrowLeft"] || pressedKeys["a"] || pressedKeys["A"]) {
       deltaX -= playerSpeed;
     }
-    console.log(currentPlayerNum);
-    let x;
-    let y;
-    // if( gameState.players[currentPlayerNum]){
-     x = gameState.players[currentPlayerNum].x + deltaX;
-     y = gameState.players[currentPlayerNum].y + deltaY;
-  //  }
 
-    socket.emit("playerMovement", { x, y })
-      
+    const x = gameState.players[currentPlayerNum].x + deltaX;
+    const y = gameState.players[currentPlayerNum].y + deltaY;
 
-    // console.log(currentPlayerNum);
+    if (
+      gameState.players[currentPlayerNum].x != x ||
+      gameState.players[currentPlayerNum].y != y
+    ) {
+      console.log("movementData to server: ", { x, y });
+      socket.emit("playerMovement", { x, y, i: currentPlayerNum });
+    }
+
     setGameState((prev) => ({
       ...prev,
       players: prev.players.map((player, index) =>
-        index === currentPlayerNum ? { x, y, } : player
+        index === currentPlayerNum ? { x, y } : player
       ),
-
-    })
-    );
-
-
-
+    }));
 
     if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
 
     const p1Rect = refP1.current.getBoundingClientRect();
-    // const p2Rect = refP2.current.getBoundingClientRect();
+    const p2Rect = refP2.current.getBoundingClientRect();
     const discRect = refDisc.current.getBoundingClientRect();
 
     const discCenter = {
@@ -130,13 +128,15 @@ const Game = () => {
       y: discRect.top + discRect.height / 2,
     };
 
-    if (isTouchingDisc(p1Rect, discRect)) {
-      const touchPoint = getKissingPoint(p1Rect, discRect);
+    const isP1Touch = isTouchingDisc(p1Rect, discRect);
+    const isP2Touch = isTouchingDisc(p2Rect, discRect);
 
-      // const reflectedPoint = {
-      //   x: 2 * discCenter.x - touchPoint.x,
-      //   y: 2 * discCenter.y - touchPoint.y,
-      // };
+    // is there is a touch
+    if (isP1Touch || isP2Touch) {
+      // which player is touching
+      const touchPoint = isP1Touch
+        ? getKissingPoint(p1Rect, discRect)
+        : getKissingPoint(p2Rect, discRect);
 
       const direction = {
         x: discCenter.x - touchPoint.x,
@@ -194,10 +194,8 @@ const Game = () => {
 
   // game interval
   useEffect(() => {
-    if (currentPlayerNum == null || currentPlayerNum === 0) return;
-    console.log(currentPlayerNum);
+    if (currentPlayerNum == null || !isPlayersConnected) return;
     let lastTime = Date.now();
-
 
     const gameLoop = setInterval(() => {
       const currTime = Date.now();
@@ -206,43 +204,38 @@ const Game = () => {
       updateGameState();
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
-
     return () => clearInterval(gameLoop);
-  }, [pressedKeys, currentPlayerNum]);
-
+  }, [pressedKeys, currentPlayerNum, isPlayersConnected]);
 
   //socket listeners initialization
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("connected", (usersCount) => {
-      setCurrentPlayerNum(usersCount - 1);
-    });
-
-    // socket.on("playerUpdate", (updatedPlayers) => {
-    //   console.log(updatedPlayers);
-    //   setGameState((prev) => ({
-    //     ...prev,
-    //     players: updatedPlayers,
-    //   }));
-    // });
-
-    socket.on("playerUp", (movementData) => {
+    socket.on("playerUpdate", (movementData) => {
       // Update player 1's movement on player 2's screen
       setGameState((prev) => ({
         ...prev,
-        players: prev.players.map((player, index) =>
-          index != currentPlayerNum ? movementData : player
+        players: prev.players.map((player, i) =>
+          i == movementData.i ? movementData : player
         ),
-      }))
+      }));
     });
-  }, [socket ,currentPlayerNum])
+
+    // get player index
+    socket.on("playerConnected", (usersCount) => {
+      setCurrentPlayerNum(usersCount - 1);
+    });
+
+    // if two players are in the game we can start
+    socket.on("startGame", () => {
+      setIsPlayersConnected(true);
+    });
+  }, [socket, currentPlayerNum]);
 
   // event listeners & game positions initialization
   useEffect(() => {
     const newSocket = io(SOCKET_SERVER_URL);
     setSocket(newSocket);
-
 
     initialPlayersPosition();
 
@@ -257,9 +250,6 @@ const Game = () => {
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
-
-
-
 
   return (
     <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
