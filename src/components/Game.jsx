@@ -80,10 +80,7 @@ const Game = () => {
     }));
   };
 
-  const updateGameState = (PLAYER_HEIGHT) => {
-    const fieldRect = refField.current.getBoundingClientRect();
-    const fieldHeightConversionFactor = 100 / fieldRect.height; // Percentage per pixel (height)
-
+  const updateGameState = (PLAYER_HEIGHT, DISC_HEIGHT, fieldRect) => {
     let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
     // Check for pressed arrow keys and update movement deltas
 
@@ -113,6 +110,7 @@ const Game = () => {
         x: discCenter.x - touchPoint.x,
         y: discCenter.y - touchPoint.y,
       };
+
       const discVelocity = calculateDiscVelocity(
         direction,
         playerSpeed * PLAYER_IMPACT_ON_DISC
@@ -141,12 +139,9 @@ const Game = () => {
 
         const borders = getTouchingBorder(discRect, fieldRect);
 
-        const discHeightPrecentge =
-          discRect.height * fieldHeightConversionFactor;
-
         if (borders.bottom) {
           newVelocity.y *= -1;
-          newDiscPosition.y = 100 - discHeightPrecentge - DISC_GAP_FROM_BORDERS;
+          newDiscPosition.y = 100 - DISC_HEIGHT - DISC_GAP_FROM_BORDERS;
         }
 
         if (borders.top) {
@@ -178,9 +173,14 @@ const Game = () => {
 
   // game interval
   useEffect(() => {
-    const PLAYER_HEIGHT =
-      (refP1?.current?.getBoundingClientRect().height * 100) /
-      refField.current.getBoundingClientRect().height;
+    const discRect = refDisc.current.getBoundingClientRect();
+    const fieldRect = refField.current.getBoundingClientRect();
+    const p1Rect = refP1.current.getBoundingClientRect();
+    const fieldHeightConversionFactor = 100 / fieldRect.height; // Percentage per pixel (height)
+
+    const PLAYER_HEIGHT = p1Rect.height * fieldHeightConversionFactor;
+
+    const DISC_HEIGHT = discRect.height * fieldHeightConversionFactor;
 
     let lastTime = Date.now();
 
@@ -188,7 +188,7 @@ const Game = () => {
       const currTime = Date.now();
       // console.log(lastTime - currTime);
       lastTime = currTime;
-      updateGameState(PLAYER_HEIGHT);
+      updateGameState(PLAYER_HEIGHT, DISC_HEIGHT, fieldRect);
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
     return () => clearInterval(gameLoop);
