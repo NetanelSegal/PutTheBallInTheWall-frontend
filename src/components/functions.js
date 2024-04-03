@@ -75,24 +75,53 @@ export const calculateDiscVelocity = (direction, playerSpeed) => {
 };
 
 
-export const getCenterOfElement = (elem) => {
-    const elemRect = elem.getBoundingClientRect();
-    return {
-        x: elemRect.left + elemRect.width / 2,
-        y: elemRect.top + elemRect.height / 2,
-    };
-}
-
-export const calculateImpulseForce = (playerSpeed) => {
-    const impulseFactor = 20; // Adjust this factor for desired push strength
-    return playerSpeed * impulseFactor;
-};
-
-const bufferValue = 10; // Adjust this value as needed
+export const getCenterOfElement = (rect) => ({
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+})
 
 export const getTouchingBorder = (discRect, fieldRect) => {
+    const res = { bottom: false, top: false, right: false, left: false }
     if (discRect.bottom >= fieldRect.bottom) {
-        return "bottom";
+        res["bottom"] = true
     }
-    // ... rest of the logic
+
+    if (discRect.top <= fieldRect.top) {
+        res["top"] = true
+    }
+
+    if (discRect.left <= fieldRect.left) {
+        res["left"] = true
+    }
+
+    if (discRect.right >= fieldRect.right) {
+        res["right"] = true
+    }
+
+    return res
+};
+
+export const getDeltaFromPlayerSpeed = (pressedKeys, playerSpeed) => {
+    let deltaX = 0;
+    let deltaY = 0;
+
+    if (pressedKeys["ArrowUp"] || pressedKeys["w"] || pressedKeys["W"]) {
+        deltaY -= playerSpeed; // Player movement distance (adjust as needed)
+    }
+    if (pressedKeys["ArrowDown"] || pressedKeys["s"] || pressedKeys["S"]) {
+        deltaY += playerSpeed;
+    }
+    if (pressedKeys["ArrowRight"] || pressedKeys["d"] || pressedKeys["D"]) {
+        deltaX += playerSpeed;
+    }
+    if (pressedKeys["ArrowLeft"] || pressedKeys["a"] || pressedKeys["A"]) {
+        deltaX -= playerSpeed;
+    }
+
+    return { x: deltaX, y: deltaY }
+}
+
+
+export const clamp = (value, min, max) => {
+    return Math.min(Math.max(value, min), max);
 };

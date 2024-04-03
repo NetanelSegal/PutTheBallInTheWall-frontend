@@ -3,6 +3,9 @@ import io from "socket.io-client";
 import Field from "./Field";
 import {
   calculateDiscVelocity,
+  clamp,
+  getCenterOfElement,
+  getDeltaFromPlayerSpeed,
   getKissingPoint,
   getTouchingBorder,
   isTouchingDisc,
@@ -10,15 +13,14 @@ import {
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
-const INITIAL_DISTANCE = 0.8;
-const SPEED_MULTIPLIER = 0.02;
+const INITIAL_DISTANCE = 2;
+const SPEED_MULTIPLIER = 0.05;
 const FRICTION = 0.9;
 const SOCKET_SERVER_URL = "http://localhost:3000";
+const DISC_GAP_FROM_BORDERS = 1;
+const PLAYER_IMPACT_ON_DISC = 3;
 
 const Game = () => {
-  const widthConversionFactor = 100 / window.innerWidth; // Percentage per pixel (width)
-  const heightConversionFactor = 100 / window.innerHeight; // Percentage per pixel (height)
-
   const refP1 = useRef();
   const refP2 = useRef();
   const refDisc = useRef();
@@ -60,48 +62,42 @@ const Game = () => {
   };
 
   const initialPlayersPosition = () => {
+    const fieldRect = refField?.current?.getBoundingClientRect();
+    const fieldHeightConversionFactor = 100 / fieldRect.height;
+    const discRect = refDisc.current.getBoundingClientRect();
+    const playerOneRect = refP1.current.getBoundingClientRect();
+
     setGameState((prev) => ({
       ...prev,
       players: [
         {
-          x: 25 - PLAYER_WIDTH / 2,
-          y: 50 - (PLAYER_WIDTH * widthConversionFactor) / 2 - 5,
+          x: 20 - PLAYER_WIDTH / 2,
+          y: 50 - (playerOneRect.height * fieldHeightConversionFactor) / 2,
         }, // Centered players (50% of each axis)
         {
-          x: 75 - PLAYER_WIDTH / 2,
-          y: 50 - (PLAYER_WIDTH * heightConversionFactor) / 2 - 5,
+          x: 80 - PLAYER_WIDTH / 2,
+          y: 50 - (playerOneRect.height * fieldHeightConversionFactor) / 2,
         }, // Centered players (50% of each axis)
       ],
       disc: {
         x: 50 - DISC_WIDTH / 2,
-        y: 50 - DISC_WIDTH / 2 - 1.2,
+        y: 50 - (discRect.height * fieldHeightConversionFactor) / 2,
         velocity: { x: 0, y: 0 },
       },
     }));
   };
 
-  const updateGameState = () => {
-    console.log("currentPlayerNum: ", currentPlayerNum);
 
-    let deltaX = 0;
-    let deltaY = 0;
+  const updateGameState = (PLAYER_HEIGHT, DISC_HEIGHT, fieldRect) => {
+     let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
+
     // Check for pressed arrow keys and update movement deltas
-    if (pressedKeys["ArrowUp"] || pressedKeys["w"] || pressedKeys["W"]) {
-      deltaY -= playerSpeed; // Player movement distance (adjust as needed)
-    }
-    if (pressedKeys["ArrowDown"] || pressedKeys["s"] || pressedKeys["S"]) {
-      deltaY += playerSpeed;
-    }
-    if (pressedKeys["ArrowRight"] || pressedKeys["d"] || pressedKeys["D"]) {
-      deltaX += playerSpeed;
-    }
-    if (pressedKeys["ArrowLeft"] || pressedKeys["a"] || pressedKeys["A"]) {
-      deltaX -= playerSpeed;
-    }
 
-    const x = gameState.players[currentPlayerNum].x + deltaX;
-    const y = gameState.players[currentPlayerNum].y + deltaY;
 
+    const x = gameState.players[currentPlayerNum].x + delta.x;
+    const y = gameState.players[currentPlayerNum].y + delta.y;
+    x = clamp(x, 0, 100 - PLAYER_WIDTH)
+    y = clamp(y, 0, 100 - PLAYER_WIDTH)
     if (
       gameState.players[currentPlayerNum].x != x ||
       gameState.players[currentPlayerNum].y != y
@@ -115,6 +111,7 @@ const Game = () => {
       players: prev.players.map((player, index) =>
         index === currentPlayerNum ? { x, y } : player
       ),
+
     }));
 
     if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
@@ -123,13 +120,11 @@ const Game = () => {
     const p2Rect = refP2.current.getBoundingClientRect();
     const discRect = refDisc.current.getBoundingClientRect();
 
-    const discCenter = {
-      x: discRect.left + discRect.width / 2,
-      y: discRect.top + discRect.height / 2,
-    };
+    const discCenter = getCenterOfElement(discRect);
 
     const isP1Touch = isTouchingDisc(p1Rect, discRect);
     const isP2Touch = isTouchingDisc(p2Rect, discRect);
+
 
     // is there is a touch
     if (isP1Touch || isP2Touch) {
@@ -143,7 +138,10 @@ const Game = () => {
         y: discCenter.y - touchPoint.y,
       };
 
-      const discVelocity = calculateDiscVelocity(direction, playerSpeed);
+      const discVelocity = calculateDiscVelocity(
+        direction,
+        playerSpeed * PLAYER_IMPACT_ON_DISC
+      );
 
       setGameState((prev) => ({
         ...prev,
@@ -166,18 +164,26 @@ const Game = () => {
           y: prev.disc.velocity.y * FRICTION,
         };
 
-        const fieldRect = refField.current.getBoundingClientRect();
+        const borders = getTouchingBorder(discRect, fieldRect);
 
-        const border = getTouchingBorder(discRect, fieldRect);
-        switch (border) {
-          case "bottom":
-            newVelocity.y *= -1;
-            newDiscPosition.y = newDiscPosition.y - 1;
-            console.log("newVelocity", newVelocity);
-            break;
+        if (borders.bottom) {
+          newVelocity.y *= -1;
+          newDiscPosition.y = 100 - DISC_HEIGHT - DISC_GAP_FROM_BORDERS;
+        }
 
-          default:
-            break;
+        if (borders.top) {
+          newVelocity.y *= -1;
+          newDiscPosition.y = DISC_GAP_FROM_BORDERS;
+        }
+
+        if (borders.left) {
+          newVelocity.x *= -1;
+          newDiscPosition.x = DISC_GAP_FROM_BORDERS;
+        }
+
+        if (borders.right) {
+          newVelocity.x *= -1;
+          newDiscPosition.x = 100 - DISC_WIDTH - DISC_GAP_FROM_BORDERS;
         }
 
         return {
@@ -194,14 +200,25 @@ const Game = () => {
 
   // game interval
   useEffect(() => {
+
     if (currentPlayerNum == null || !isPlayersConnected) return;
+        const discRect = refDisc.current.getBoundingClientRect();
+    const fieldRect = refField.current.getBoundingClientRect();
+    const p1Rect = refP1.current.getBoundingClientRect();
+    const fieldHeightConversionFactor = 100 / fieldRect.height; // Percentage per pixel (height)
+
+    const PLAYER_HEIGHT = p1Rect.height * fieldHeightConversionFactor;
+
+    const DISC_HEIGHT = discRect.height * fieldHeightConversionFactor;
+
+
     let lastTime = Date.now();
 
     const gameLoop = setInterval(() => {
       const currTime = Date.now();
       // console.log(lastTime - currTime);
       lastTime = currTime;
-      updateGameState();
+      updateGameState(PLAYER_HEIGHT, DISC_HEIGHT, fieldRect);
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
     return () => clearInterval(gameLoop);
