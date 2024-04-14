@@ -10,6 +10,7 @@ import {
   getTouchingBorder,
   isTouchingDisc,
 } from "./functions";
+import UI from "./UI";
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
@@ -39,6 +40,8 @@ const Game = () => {
   const [pressedKeys, setPressedKeys] = useState({});
 
   const [gameState, setGameState] = useState({
+    time: 0,
+    score: [2, 5],
     players: [
       { x: 0, y: 0 },
       { x: 0, y: 0 },
@@ -89,13 +92,19 @@ const Game = () => {
 
   const updateGameState = (PLAYER_HEIGHT, DISC_HEIGHT, fieldRect) => {
     let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
-
     // Check for pressed arrow keys and update movement deltas
 
     let x = gameState.players[currentPlayerNum].x + delta.x;
     let y = gameState.players[currentPlayerNum].y + delta.y;
-    x = clamp(x, 0, 100 - PLAYER_WIDTH);
-    y = clamp(y, 0, 100 - PLAYER_HEIGHT);
+    if (currentPlayerNum == 0) {
+      x = clamp(x, 0, 50 - PLAYER_WIDTH);
+      y = clamp(y, 0, 100 - PLAYER_HEIGHT);
+    } else {
+      x = clamp(x, 50, 100 - PLAYER_WIDTH);
+      y = clamp(y, 0, 100 - PLAYER_HEIGHT);
+    }
+    // x = clamp(x, 0, 100 - PLAYER_WIDTH);
+    // y = clamp(y, 0, 100 - PLAYER_HEIGHT);
 
     if (
       gameState.players[currentPlayerNum].x != x ||
@@ -193,6 +202,8 @@ const Game = () => {
         };
       });
     }
+
+    setGameState((prev) => ({ ...prev, time: prev.time + 16 }));
   };
 
   // game interval
@@ -207,13 +218,18 @@ const Game = () => {
 
     const DISC_HEIGHT = discRect.height * fieldHeightConversionFactor;
 
-    let lastTime = Date.now();
+    let lastTime = 0;
 
     const gameLoop = setInterval(() => {
       const currTime = Date.now();
       // console.log(lastTime - currTime);
-      lastTime = currTime;
-      updateGameState(PLAYER_HEIGHT, DISC_HEIGHT, fieldRect);
+      setGameState((prev) => ({
+        ...prev,
+        time: lastTime,
+      }));
+      // console.log(gameState.time);
+      lastTime += 16;
+      updateGameState(PLAYER_HEIGHT, DISC_HEIGHT, fieldRect, currTime);
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
     return () => clearInterval(gameLoop);
@@ -263,8 +279,13 @@ const Game = () => {
     };
   }, []);
 
+  useEffect(() => {
+    console.log(gameState.time);
+  });
+
   return (
     <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
+      <UI timeInMS={gameState.time} score={gameState.score} />
       <Field
         refField={refField}
         gameState={gameState}
