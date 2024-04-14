@@ -40,7 +40,7 @@ const Game = () => {
   const [pressedKeys, setPressedKeys] = useState({});
 
   const [gameState, setGameState] = useState({
-    time: 0,
+    time: 50000,
     score: [2, 5],
     players: [
       { x: 0, y: 0 },
@@ -218,17 +218,8 @@ const Game = () => {
 
     const DISC_HEIGHT = discRect.height * fieldHeightConversionFactor;
 
-    let lastTime = 0;
-
     const gameLoop = setInterval(() => {
       const currTime = Date.now();
-      // console.log(lastTime - currTime);
-      setGameState((prev) => ({
-        ...prev,
-        time: lastTime,
-      }));
-      // console.log(gameState.time);
-      lastTime += 16;
       updateGameState(PLAYER_HEIGHT, DISC_HEIGHT, fieldRect, currTime);
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
