@@ -4,11 +4,11 @@ import BG from "./BG";
 
 
 
-const Field = ({ gameState, refs, refField }) => {
+const Field = ({ gameState, refs, refsField }) => {
 
   return (
     <div
-      ref={refField}
+      ref={refsField[0]}
       className="relative w-full h-full outline outline-[1vw] outline-white"
     >
       <Player pos={gameState.players[0]} elemRef={refs[0]} />

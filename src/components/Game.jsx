@@ -26,7 +26,8 @@ const Game = () => {
   const refP2 = useRef();
   const refDisc = useRef();
   const refField = useRef();
-
+  const rightWallRef = useRef();
+  const leftWallRef = useRef();
 
   const [isPlayersConnected, setIsPlayersConnected] = useState(false);
 
@@ -317,7 +318,7 @@ const Game = () => {
     <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
       <UI timeInMS={gameState.time} score={gameState.score} />
       <Field
-        refsField={refField}
+        refsField={[refField,  leftWallRef , rightWallRef]}
         gameState={gameState}
         refs={[refP1, refP2, refDisc]}
       />
