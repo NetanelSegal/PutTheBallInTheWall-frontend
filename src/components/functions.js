@@ -125,3 +125,15 @@ export const getDeltaFromPlayerSpeed = (pressedKeys, playerSpeed) => {
 export const clamp = (value, min, max) => {
     return Math.min(Math.max(value, min), max);
 };
+
+
+export const limitPlayerToField = ({ x, y }, { w, h }, playerNum) => {
+    if (playerNum == 0) {
+        x = clamp(x, 0, 50 - w);
+        y = clamp(y, 0, 100 - h);
+    } else {
+        x = clamp(x, 50, 100 - w);
+        y = clamp(y, 0, 100 - h);
+    }
+    return { x, y };
+};

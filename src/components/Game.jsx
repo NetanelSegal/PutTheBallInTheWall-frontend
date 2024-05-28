@@ -9,12 +9,13 @@ import {
   getKissingPoint,
   getTouchingBorder,
   isTouchingDisc,
+  limitPlayerToField,
 } from "./functions";
 import UI from "./UI";
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
-const INITIAL_PLAYER_MOVEMENT_DISTANCE = 2;
+const INITIAL_PLAYER_MOVEMENT_DISTANCE = 3;
 const SPEED_MULTIPLIER = 0.01;
 const FRICTION = 0.9;
 const SOCKET_SERVER_URL = "http://localhost:3000";
@@ -26,8 +27,8 @@ const Game = () => {
   const refP2 = useRef();
   const refDisc = useRef();
   const refField = useRef();
-  const rightWallRef = useRef();
-  const leftWallRef = useRef();
+  const refRightWall = useRef();
+  const refLeftWall = useRef();
 
   const [isPlayersConnected, setIsPlayersConnected] = useState(false);
 
@@ -37,16 +38,19 @@ const Game = () => {
 
   const [isHoldingKey, setIsHoldingKey] = useState(false);
   // const [isUsingMouse, setIsUsingMouse] = useState(false);
-  const [playerSpeed, setPlayerSpeed] = useState(INITIAL_PLAYER_MOVEMENT_DISTANCE);
+  const [playerSpeed, setPlayerSpeed] = useState(
+    INITIAL_PLAYER_MOVEMENT_DISTANCE
+  );
 
   const [pressedKeys, setPressedKeys] = useState({});
+  const refPressedKeys = useRef({});
 
   const [gameState, setGameState] = useState({
     time: 0,
     score: [2, 5],
     players: [
-      { x: 0, y: 0},
-      { x: 0, y: 0},
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
     ],
     disc: { x: 0, y: 0, velocity: { x: 0, y: 0 } },
   });
@@ -56,14 +60,18 @@ const Game = () => {
   // };
 
   const handleKeyDown = (e) => {
-    setPressedKeys((prev) => ({ ...prev, [e.key]: true }));
-    setIsHoldingKey(true);
+    refPressedKeys.current = { ...refPressedKeys.current, [e.key]: true };
+    // if (!pressedKeys[e.key]) {
+    //   setPressedKeys((prev) => ({ ...prev, [e.key]: true }));
+    //   setIsHoldingKey(true);
+    // }
   };
 
   const handleKeyUp = (e) => {
-    setPressedKeys((prev) => ({ ...prev, [e.key]: false }));
-    setIsHoldingKey(false);
-    setPlayerSpeed(INITIAL_PLAYER_MOVEMENT_DISTANCE);
+    refPressedKeys.current = { ...refPressedKeys.current, [e.key]: false };
+    // setPressedKeys((prev) => ({ ...prev, [e.key]: false }));
+    // setIsHoldingKey(false);
+    // setPlayerSpeed(INITIAL_PLAYER_MOVEMENT_DISTANCE);
   };
 
   const initialPlayersPosition = () => {
@@ -92,21 +100,30 @@ const Game = () => {
     }));
   };
 
-  const updateGameState = (PLAYER_HEIGHT, DISC_HEIGHT, { discRect,fieldRect,p1Rect,p2Rect }) => {
-     discRect = refDisc.current.getBoundingClientRect();
-    let delta = getDeltaFromPlayerSpeed(pressedKeys, playerSpeed);
+  const updateGameState = (
+    PLAYER_HEIGHT,
+    DISC_HEIGHT,
+    { discRect, fieldRect, p1Rect, p2Rect }
+  ) => {
+    discRect = refDisc.current.getBoundingClientRect();
+
+    let delta = getDeltaFromPlayerSpeed(refPressedKeys.current, playerSpeed);
     // Check for pressed arrow keys and update movement deltas
-    let x = gameState.players[currentPlayerNum].x + delta.x;
-    let y = gameState.players[currentPlayerNum].y + delta.y;
-    if (currentPlayerNum == 0) {
-      x = clamp(x, 0, 50 - PLAYER_WIDTH);
-      y = clamp(y, 0, 100 - PLAYER_HEIGHT);
-    } else {
-      x = clamp(x, 50, 100 - PLAYER_WIDTH);
-      y = clamp(y, 0, 100 - PLAYER_HEIGHT);
-    }
 
+    let newPlayerPosition = {
+      x: gameState.players[currentPlayerNum].x + delta.x,
+      y: gameState.players[currentPlayerNum].y + delta.y,
+    };
 
+    newPlayerPosition = limitPlayerToField(
+      newPlayerPosition,
+      { h: PLAYER_HEIGHT, w: PLAYER_WIDTH },
+      currentPlayerNum
+    );
+
+    const { x, y } = newPlayerPosition;
+
+    // Emit only when changed position
     if (
       gameState.players[currentPlayerNum].x != x ||
       gameState.players[currentPlayerNum].y != y
@@ -121,9 +138,7 @@ const Game = () => {
       ),
     }));
 
-     if (isHoldingKey)  setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
-
-
+    // if (isHoldingKey) setPlayerSpeed((prev) => prev + prev * SPEED_MULTIPLIER);
 
     const discCenter = getCenterOfElement(discRect);
 
@@ -141,15 +156,12 @@ const Game = () => {
         x: discCenter.x - touchPoint.x,
         y: discCenter.y - touchPoint.y,
       };
-
       const discVelocity = calculateDiscVelocity(
         direction,
         playerSpeed * PLAYER_IMPACT_ON_DISC
       );
 
-      
-
-      socket.emit("discTouch" , discVelocity);
+      socket.emit("discTouch", discVelocity);
 
       setGameState((prev) => ({
         ...prev,
@@ -160,7 +172,6 @@ const Game = () => {
         },
       }));
     } else {
-      
       setGameState((prev) => {
         // setting new positions based on velocity
         const newDiscPosition = {
@@ -184,7 +195,7 @@ const Game = () => {
           newVelocity.y *= -1;
           newDiscPosition.y = DISC_GAP_FROM_BORDERS;
         }
-        
+
         if (borders.left) {
           newVelocity.x *= -1;
           newDiscPosition.x = DISC_GAP_FROM_BORDERS;
@@ -213,7 +224,6 @@ const Game = () => {
   useEffect(() => {
     if (currentPlayerNum == null || !isPlayersConnected) return;
 
-
     const discRect = refDisc.current.getBoundingClientRect();
     const fieldRect = refField.current.getBoundingClientRect();
     const p1Rect = refP1.current.getBoundingClientRect();
@@ -222,8 +232,8 @@ const Game = () => {
       discRect,
       fieldRect,
       p1Rect,
-      p2Rect
-    }
+      p2Rect,
+    };
 
     const fieldHeightConversionFactor = 100 / fieldRect.height; // Percentage per pixel (height)
 
@@ -232,31 +242,28 @@ const Game = () => {
     const DISC_HEIGHT = discRect.height * fieldHeightConversionFactor;
 
     const gameLoop = setInterval(() => {
-      updateGameState(PLAYER_HEIGHT, DISC_HEIGHT, elementsRect );
+      updateGameState(PLAYER_HEIGHT, DISC_HEIGHT, elementsRect);
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
     return () => clearInterval(gameLoop);
-  }, [pressedKeys, currentPlayerNum, isPlayersConnected]);
+  }, [currentPlayerNum, isPlayersConnected, gameState]);
 
   //socket listeners initialization
   useEffect(() => {
     if (!socket) return;
 
-    if(currentPlayerNum == 2){
+    if (currentPlayerNum == 2) {
       let interval = setInterval(() => {
         setGameState((prev) => ({
           ...prev,
-          time: prev.time + 1000
+          time: prev.time + 1000,
         }));
-        
-
       }, 1000);
 
       return () => clearInterval(interval);
     }
 
-    socket.on("discUpdate" , (discVelocity) => {
-       console.log(discVelocity);
+    socket.on("discUpdate", (discVelocity) => {
       setGameState((prev) => ({
         ...prev,
         disc: {
@@ -264,10 +271,8 @@ const Game = () => {
           y: prev.disc.y + discVelocity.y,
           velocity: discVelocity,
         },
-      }))
-    })
-
-
+      }));
+    });
 
     socket.on("playerUpdate", (movementData) => {
       // Update player 1's movement on player 2's screen
@@ -318,9 +323,11 @@ const Game = () => {
     <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
       <UI timeInMS={gameState.time} score={gameState.score} />
       <Field
-        refsField={[refField,  leftWallRef , rightWallRef]}
+        refWalls={[refLeftWall, refRightWall]}
+        refField={refField}
         gameState={gameState}
-        refs={[refP1, refP2, refDisc]}
+        refPlayers={[refP1, refP2]}
+        refDisc={refDisc}
       />
     </div>
   );
