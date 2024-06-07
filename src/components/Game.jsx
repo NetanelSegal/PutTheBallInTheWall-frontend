@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import Field from "./Field";
+
 import {
   calculateDiscVelocity,
   clamp,
@@ -12,17 +13,17 @@ import {
   limitPlayerToField,
 } from "./functions";
 import UI from "./UI";
+import URLS from "../constants/URLS";
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
 const INITIAL_PLAYER_MOVEMENT_DISTANCE = 3;
 const SPEED_MULTIPLIER = 0.01;
 const FRICTION = 0.9;
-const SOCKET_SERVER_URL = "http://localhost:3000";
 const DISC_GAP_FROM_BORDERS = 1;
 const PLAYER_IMPACT_ON_DISC = 3;
 
-const Game = () => {
+const Game = ({ socket, roomName }) => {
   const refP1 = useRef();
   const refP2 = useRef();
   const refDisc = useRef();
@@ -32,7 +33,7 @@ const Game = () => {
 
   const [isPlayersConnected, setIsPlayersConnected] = useState(false);
 
-  const [socket, setSocket] = useState(null);
+  // const [socket, setSocket] = useState(null);
 
   const [currentPlayerNum, setCurrentPlayerNum] = useState(null);
 
@@ -47,7 +48,7 @@ const Game = () => {
 
   const [gameState, setGameState] = useState({
     time: 0,
-    score: [2, 5],
+    score: [0, 0],
     players: [
       { x: 0, y: 0 },
       { x: 0, y: 0 },
@@ -291,16 +292,13 @@ const Game = () => {
 
     // if two players are in the game we can start
     socket.on("startGame", () => {
+      console.log("game started");
       setIsPlayersConnected(true);
     });
-    console.log(currentPlayerNum);
   }, [socket, currentPlayerNum]);
 
   // event listeners & game positions initialization
   useEffect(() => {
-    const newSocket = io(SOCKET_SERVER_URL);
-    setSocket(newSocket);
-
     initialPlayersPosition();
 
     // window.addEventListener("mousemove", handleMouseMove);
@@ -308,16 +306,11 @@ const Game = () => {
     window.addEventListener("keyup", handleKeyUp);
 
     return () => {
-      newSocket.disconnect();
       // window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
-
-  // useEffect(() => {
-  //   console.log(gameState.time);
-  // });
 
   return (
     <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
