@@ -6,7 +6,7 @@ const Field = ({ gameState, refPlayers, refDisc, refField, refWalls }) => {
   return (
     <div
       ref={refField}
-      className="relative w-full h-full outline outline-[1vw] outline-white"
+      className="relative max-w-full max-h-screen w-full aspect-[2/1] outline outline-[1vw] outline-white"
     >
       <Player pos={gameState.players[0]} elemRef={refPlayers[0]} />
       <Player pos={gameState.players[1]} elemRef={refPlayers[1]} />

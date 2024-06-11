@@ -74,11 +74,34 @@ export const calculateDiscVelocity = (direction, playerSpeed) => {
     return velocity;
 };
 
-
 export const getCenterOfElement = (rect) => ({
     x: rect.left + rect.width / 2,
     y: rect.top + rect.height / 2,
 })
+
+export const reverseDiscDirection = (borders, position, velocity, { w, h }, gap) => {
+    if (borders.bottom) {
+        velocity.y *= -1;
+        position.y = 100 - h - gap;
+    }
+
+    if (borders.top) {
+        velocity.y *= -1;
+        position.y = gap;
+    }
+
+    if (borders.left) {
+        velocity.x *= -1;
+        position.x = gap;
+    }
+
+    if (borders.right) {
+        velocity.x *= -1;
+        position.x = 100 - w - gap;
+    }
+
+    return [position, velocity]
+};
 
 export const getTouchingBorder = (discRect, fieldRect) => {
     const res = { bottom: false, top: false, right: false, left: false }

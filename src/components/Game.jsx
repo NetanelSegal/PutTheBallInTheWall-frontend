@@ -1,19 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import io from "socket.io-client";
 import Field from "./Field";
 
 import {
   calculateDiscVelocity,
-  clamp,
   getCenterOfElement,
   getDeltaFromPlayerSpeed,
   getKissingPoint,
   getTouchingBorder,
   isTouchingDisc,
   limitPlayerToField,
+  reverseDiscDirection,
 } from "./functions";
 import UI from "./UI";
-import URLS from "../constants/URLS";
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
@@ -32,8 +30,6 @@ const Game = ({ socket, roomName }) => {
   const refLeftWall = useRef();
 
   const [isPlayersConnected, setIsPlayersConnected] = useState(false);
-
-  // const [socket, setSocket] = useState(null);
 
   const [currentPlayerNum, setCurrentPlayerNum] = useState(null);
 
@@ -62,17 +58,10 @@ const Game = ({ socket, roomName }) => {
 
   const handleKeyDown = (e) => {
     refPressedKeys.current = { ...refPressedKeys.current, [e.key]: true };
-    // if (!pressedKeys[e.key]) {
-    //   setPressedKeys((prev) => ({ ...prev, [e.key]: true }));
-    //   setIsHoldingKey(true);
-    // }
   };
 
   const handleKeyUp = (e) => {
     refPressedKeys.current = { ...refPressedKeys.current, [e.key]: false };
-    // setPressedKeys((prev) => ({ ...prev, [e.key]: false }));
-    // setIsHoldingKey(false);
-    // setPlayerSpeed(INITIAL_PLAYER_MOVEMENT_DISTANCE);
   };
 
   const initialPlayersPosition = () => {
@@ -163,49 +152,28 @@ const Game = ({ socket, roomName }) => {
       );
 
       socket.emit("discTouch", discVelocity);
-
-      setGameState((prev) => ({
-        ...prev,
-        disc: {
-          x: prev.disc.x + discVelocity.x,
-          y: prev.disc.y + discVelocity.y,
-          velocity: discVelocity,
-        },
-      }));
     } else {
       setGameState((prev) => {
         // setting new positions based on velocity
-        const newDiscPosition = {
+        let newDiscPosition = {
           x: prev.disc.x + prev.disc.velocity.x,
           y: prev.disc.y + prev.disc.velocity.y,
         };
 
-        const newVelocity = {
+        let newVelocity = {
           x: prev.disc.velocity.x * FRICTION,
           y: prev.disc.velocity.y * FRICTION,
         };
 
         const borders = getTouchingBorder(discRect, fieldRect);
 
-        if (borders.bottom) {
-          newVelocity.y *= -1;
-          newDiscPosition.y = 100 - DISC_HEIGHT - DISC_GAP_FROM_BORDERS;
-        }
-
-        if (borders.top) {
-          newVelocity.y *= -1;
-          newDiscPosition.y = DISC_GAP_FROM_BORDERS;
-        }
-
-        if (borders.left) {
-          newVelocity.x *= -1;
-          newDiscPosition.x = DISC_GAP_FROM_BORDERS;
-        }
-
-        if (borders.right) {
-          newVelocity.x *= -1;
-          newDiscPosition.x = 100 - DISC_WIDTH - DISC_GAP_FROM_BORDERS;
-        }
+        [newDiscPosition, newVelocity] = reverseDiscDirection(
+          borders,
+          newDiscPosition,
+          newVelocity,
+          { w: DISC_WIDTH, h: DISC_HEIGHT },
+          DISC_GAP_FROM_BORDERS
+        );
 
         return {
           ...prev,
@@ -249,20 +217,15 @@ const Game = ({ socket, roomName }) => {
     return () => clearInterval(gameLoop);
   }, [currentPlayerNum, isPlayersConnected, gameState]);
 
+  useEffect(() => {
+    if (!isPlayersConnected) {
+      setGameState((prev) => ({ ...prev, time: 0 }));
+    }
+  }, [isPlayersConnected]);
+
   //socket listeners initialization
   useEffect(() => {
     if (!socket) return;
-
-    if (currentPlayerNum == 2) {
-      let interval = setInterval(() => {
-        setGameState((prev) => ({
-          ...prev,
-          time: prev.time + 1000,
-        }));
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
 
     socket.on("discUpdate", (discVelocity) => {
       setGameState((prev) => ({
@@ -295,6 +258,11 @@ const Game = ({ socket, roomName }) => {
       console.log("game started");
       setIsPlayersConnected(true);
     });
+
+    socket.on("playerDisconnected", () => {
+      console.log("playerDisconnected");
+      setIsPlayersConnected(false);
+    });
   }, [socket, currentPlayerNum]);
 
   // event listeners & game positions initialization
@@ -313,7 +281,16 @@ const Game = ({ socket, roomName }) => {
   }, []);
 
   return (
-    <div className="bg-blue-950 h-screen w-screen p-[3%] justify-center items-center">
+    <div className="bg-blue-950 h-screen w-screen p-[8%] flex justify-center items-center">
+      {!isPlayersConnected && (
+        <div className="absolute inset-0 z-40 flex justify-center items-center backdrop-blur-sm">
+          <div className="bg-black w-full h-full absolute opacity-40"></div>
+          <h1 className="text-3xl font-semibold text-white z-50">
+            Waiting for other player...
+          </h1>
+        </div>
+      )}
+
       <UI timeInMS={gameState.time} score={gameState.score} />
       <Field
         refWalls={[refLeftWall, refRightWall]}
