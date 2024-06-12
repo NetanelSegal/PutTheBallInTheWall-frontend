@@ -281,7 +281,7 @@ const Game = ({ socket, roomName }) => {
   }, []);
 
   return (
-    <div className="bg-blue-950 h-screen w-screen p-[8%] flex justify-center items-center">
+    <div className="relative bg-blue-950 h-dvh w-dvh p-[5%]">
       {!isPlayersConnected && (
         <div className="absolute inset-0 z-40 flex justify-center items-center backdrop-blur-sm">
           <div className="bg-black w-full h-full absolute opacity-40"></div>
@@ -290,7 +290,6 @@ const Game = ({ socket, roomName }) => {
           </h1>
         </div>
       )}
-
       <UI timeInMS={gameState.time} score={gameState.score} />
       <Field
         refWalls={[refLeftWall, refRightWall]}
