@@ -100,7 +100,7 @@ export const reverseDiscDirection = (borders, position, velocity, { w, h }, gap)
         position.x = 100 - w - gap;
     }
 
-    return [position, velocity]
+    return { position, velocity }
 };
 
 export const getTouchingBorder = (discRect, fieldRect) => {
@@ -113,6 +113,7 @@ export const getTouchingBorder = (discRect, fieldRect) => {
         res["top"] = true
     }
 
+    // if 
     if (discRect.left <= fieldRect.left) {
         res["left"] = true
     }
@@ -159,4 +160,13 @@ export const limitPlayerToField = ({ x, y }, { w, h }, playerNum) => {
         y = clamp(y, 0, 100 - h);
     }
     return { x, y };
+};
+
+export const isGoal = ({ right, left }, [wLeft, wRight], { top, bottom }) => {
+    // If in wall height
+    if (top >= wLeft.top && bottom <= wRight.bottom) {
+        if (right) return 0;
+        else if (left) return 1;
+    }
+    -1;
 };

@@ -7,6 +7,7 @@ import {
   getDeltaFromPlayerSpeed,
   getKissingPoint,
   getTouchingBorder,
+  isGoal,
   isTouchingDisc,
   limitPlayerToField,
   reverseDiscDirection,
@@ -19,9 +20,9 @@ const INITIAL_PLAYER_MOVEMENT_DISTANCE = 3;
 const SPEED_MULTIPLIER = 0.01;
 const FRICTION = 0.9;
 const DISC_GAP_FROM_BORDERS = 1;
-const PLAYER_IMPACT_ON_DISC = 3;
+const PLAYER_IMPACT_ON_DISC = 2;
 
-const Game = ({ socket, roomName }) => {
+const Game = ({ socket }) => {
   const refP1 = useRef();
   const refP2 = useRef();
   const refDisc = useRef();
@@ -29,6 +30,7 @@ const Game = ({ socket, roomName }) => {
   const refRightWall = useRef();
   const refLeftWall = useRef();
 
+  const [scoringPlayerIndex, setScoringPlayerIndex] = useState(-1);
   const [isPlayersConnected, setIsPlayersConnected] = useState(false);
 
   const [currentPlayerNum, setCurrentPlayerNum] = useState(null);
@@ -43,7 +45,6 @@ const Game = ({ socket, roomName }) => {
   const refPressedKeys = useRef({});
 
   const [gameState, setGameState] = useState({
-    time: 0,
     score: [0, 0],
     players: [
       { x: 0, y: 0 },
@@ -65,6 +66,7 @@ const Game = ({ socket, roomName }) => {
   };
 
   const initialPlayersPosition = () => {
+    console.log("Initialing positions");
     const fieldRect = refField?.current?.getBoundingClientRect();
     const fieldHeightConversionFactor = 100 / fieldRect.height;
     const discRect = refDisc.current.getBoundingClientRect();
@@ -93,7 +95,7 @@ const Game = ({ socket, roomName }) => {
   const updateGameState = (
     PLAYER_HEIGHT,
     DISC_HEIGHT,
-    { discRect, fieldRect, p1Rect, p2Rect }
+    { discRect, fieldRect, p1Rect, p2Rect, wallsRect }
   ) => {
     discRect = refDisc.current.getBoundingClientRect();
 
@@ -167,13 +169,24 @@ const Game = ({ socket, roomName }) => {
 
         const borders = getTouchingBorder(discRect, fieldRect);
 
-        [newDiscPosition, newVelocity] = reverseDiscDirection(
-          borders,
-          newDiscPosition,
-          newVelocity,
-          { w: DISC_WIDTH, h: DISC_HEIGHT },
-          DISC_GAP_FROM_BORDERS
-        );
+        const scoringPlayerIndex = isGoal(borders, wallsRect, discRect);
+
+        // if goal
+        if (scoringPlayerIndex == currentPlayerNum) {
+          setScoringPlayerIndex(scoringPlayerIndex);
+          // console.log("goal");
+          // socket.emit("playerGoal", scoringPlayerIndex);
+        } else {
+          // if not goal reverse direction
+          ({ position: newDiscPosition, velocity: newVelocity } =
+            reverseDiscDirection(
+              borders,
+              newDiscPosition,
+              newVelocity,
+              { w: DISC_WIDTH, h: DISC_HEIGHT },
+              DISC_GAP_FROM_BORDERS
+            ));
+        }
 
         return {
           ...prev,
@@ -185,9 +198,13 @@ const Game = ({ socket, roomName }) => {
         };
       });
     }
-
-    setGameState((prev) => ({ ...prev, time: prev.time + 16 }));
   };
+
+  useEffect(() => {
+    if (scoringPlayerIndex != -1) {
+      socket.emit("playerGoal", scoringPlayerIndex);
+    }
+  }, [scoringPlayerIndex]);
 
   // game interval
   useEffect(() => {
@@ -197,11 +214,17 @@ const Game = ({ socket, roomName }) => {
     const fieldRect = refField.current.getBoundingClientRect();
     const p1Rect = refP1.current.getBoundingClientRect();
     const p2Rect = refP2.current.getBoundingClientRect();
+
+    const wallsRect = [
+      refLeftWall.current.getBoundingClientRect(),
+      refRightWall.current.getBoundingClientRect(),
+    ];
     const elementsRect = {
       discRect,
       fieldRect,
       p1Rect,
       p2Rect,
+      wallsRect,
     };
 
     const fieldHeightConversionFactor = 100 / fieldRect.height; // Percentage per pixel (height)
@@ -216,12 +239,6 @@ const Game = ({ socket, roomName }) => {
 
     return () => clearInterval(gameLoop);
   }, [currentPlayerNum, isPlayersConnected, gameState]);
-
-  useEffect(() => {
-    if (!isPlayersConnected) {
-      setGameState((prev) => ({ ...prev, time: 0 }));
-    }
-  }, [isPlayersConnected]);
 
   //socket listeners initialization
   useEffect(() => {
@@ -249,8 +266,8 @@ const Game = ({ socket, roomName }) => {
     });
 
     // get player index
-    socket.on("playerConnected", (usersCount) => {
-      setCurrentPlayerNum(usersCount - 1);
+    socket.on("playerConnected", (playerNum) => {
+      setCurrentPlayerNum(playerNum);
     });
 
     // if two players are in the game we can start
@@ -263,6 +280,16 @@ const Game = ({ socket, roomName }) => {
       console.log("playerDisconnected");
       setIsPlayersConnected(false);
     });
+
+    socket.on("updateScore", ({ scoringPlayerIndex, score }) => {
+      setGameState((prev) => ({
+        ...prev,
+        score: prev.score.map((s, i) => (i === scoringPlayerIndex ? score : s)),
+      }));
+    });
+    return () => {
+      setTimeout(() => initialPlayersPosition(), 100);
+    };
   }, [socket, currentPlayerNum]);
 
   // event listeners & game positions initialization
@@ -280,6 +307,10 @@ const Game = ({ socket, roomName }) => {
     };
   }, []);
 
+  useEffect(() => {
+    console.log(refRightWall, refLeftWall);
+  }, []);
+
   return (
     <div className="relative bg-blue-950 h-dvh w-dvh p-[5%]">
       {!isPlayersConnected && (
@@ -290,7 +321,7 @@ const Game = ({ socket, roomName }) => {
           </h1>
         </div>
       )}
-      <UI timeInMS={gameState.time} score={gameState.score} />
+      <UI startGame={isPlayersConnected} score={gameState.score} />
       <Field
         refWalls={[refLeftWall, refRightWall]}
         refField={refField}
