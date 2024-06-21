@@ -13,6 +13,7 @@ import {
   reverseDiscDirection,
 } from "./functions";
 import UI from "./UI";
+import CountDown from "./CountDown";
 
 const PLAYER_WIDTH = 8;
 const DISC_WIDTH = 5;
@@ -30,6 +31,7 @@ const Game = ({ socket }) => {
   const refRightWall = useRef();
   const refLeftWall = useRef();
 
+  const [countDown, setCountDown] = useState(3);
   const [scoringPlayerIndex, setScoringPlayerIndex] = useState(-1);
   const [isPlayersConnected, setIsPlayersConnected] = useState(false);
 
@@ -66,11 +68,19 @@ const Game = ({ socket }) => {
   };
 
   const initialPlayersPosition = () => {
-    console.log("Initialing positions");
     const fieldRect = refField?.current?.getBoundingClientRect();
     const fieldHeightConversionFactor = 100 / fieldRect.height;
     const discRect = refDisc.current.getBoundingClientRect();
     const playerOneRect = refP1.current.getBoundingClientRect();
+
+    setGameState((prev) => ({
+      ...prev,
+      disc: {
+        x: 50 - DISC_WIDTH / 2,
+        y: 50 - (discRect.height * fieldHeightConversionFactor) / 2,
+        velocity: { x: 0, y: 0 },
+      },
+    }));
 
     setGameState((prev) => ({
       ...prev,
@@ -84,12 +94,9 @@ const Game = ({ socket }) => {
           y: 50 - (playerOneRect.height * fieldHeightConversionFactor) / 2,
         }, // Centered players (50% of each axis)
       ],
-      disc: {
-        x: 50 - DISC_WIDTH / 2,
-        y: 50 - (discRect.height * fieldHeightConversionFactor) / 2,
-        velocity: { x: 0, y: 0 },
-      },
     }));
+
+    setScoringPlayerIndex(-1);
   };
 
   const updateGameState = (
@@ -172,10 +179,8 @@ const Game = ({ socket }) => {
         const scoringPlayerIndex = isGoal(borders, wallsRect, discRect);
 
         // if goal
-        if (scoringPlayerIndex == currentPlayerNum) {
+        if (scoringPlayerIndex != -1) {
           setScoringPlayerIndex(scoringPlayerIndex);
-          // console.log("goal");
-          // socket.emit("playerGoal", scoringPlayerIndex);
         } else {
           // if not goal reverse direction
           ({ position: newDiscPosition, velocity: newVelocity } =
@@ -201,14 +206,15 @@ const Game = ({ socket }) => {
   };
 
   useEffect(() => {
-    if (scoringPlayerIndex != -1) {
+    if (scoringPlayerIndex == currentPlayerNum) {
       socket.emit("playerGoal", scoringPlayerIndex);
     }
   }, [scoringPlayerIndex]);
 
   // game interval
   useEffect(() => {
-    if (currentPlayerNum == null || !isPlayersConnected) return;
+    if (currentPlayerNum == null || !isPlayersConnected || countDown > 0)
+      return;
 
     const discRect = refDisc.current.getBoundingClientRect();
     const fieldRect = refField.current.getBoundingClientRect();
@@ -238,7 +244,7 @@ const Game = ({ socket }) => {
     }, 16); // Call updateGameState every 16ms (roughly 60 FPS)
 
     return () => clearInterval(gameLoop);
-  }, [currentPlayerNum, isPlayersConnected, gameState]);
+  }, [currentPlayerNum, isPlayersConnected, gameState, countDown]);
 
   //socket listeners initialization
   useEffect(() => {
@@ -286,10 +292,9 @@ const Game = ({ socket }) => {
         ...prev,
         score: prev.score.map((s, i) => (i === scoringPlayerIndex ? score : s)),
       }));
+      initialPlayersPosition();
+      setCountDown(3);
     });
-    return () => {
-      setTimeout(() => initialPlayersPosition(), 100);
-    };
   }, [socket, currentPlayerNum]);
 
   // event listeners & game positions initialization
@@ -307,21 +312,23 @@ const Game = ({ socket }) => {
     };
   }, []);
 
-  useEffect(() => {
-    console.log(refRightWall, refLeftWall);
-  }, []);
-
   return (
     <div className="relative bg-blue-950 h-dvh w-dvh p-[5%]">
-      {!isPlayersConnected && (
+      {!isPlayersConnected ? (
         <div className="absolute inset-0 z-40 flex justify-center items-center backdrop-blur-sm">
           <div className="bg-black w-full h-full absolute opacity-40"></div>
           <h1 className="text-3xl font-semibold text-white z-50">
             Waiting for other player...
           </h1>
         </div>
+      ) : (
+        countDown > 0 && <CountDown count={countDown} setCount={setCountDown} />
       )}
-      <UI startGame={isPlayersConnected} score={gameState.score} />
+      <UI
+        countDown={countDown}
+        startGame={isPlayersConnected}
+        score={gameState.score}
+      />
       <Field
         refWalls={[refLeftWall, refRightWall]}
         refField={refField}

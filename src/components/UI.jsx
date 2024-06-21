@@ -2,18 +2,21 @@ import React, { useEffect, useState } from "react";
 import Score from "./Score";
 import Time from "./Time";
 
-const UI = ({ startGame, score }) => {
+const UI = ({ startGame, score, countDown }) => {
   const [time, setTime] = useState(0);
-  
+
   useEffect(() => {
     let intervalId;
-    if (startGame) {
+    if (startGame && countDown <= 0) {
       intervalId = setInterval(() => {
         setTime((time) => time + 1);
       }, 1000);
+    } else if (countDown > 0) {
+      clearInterval(intervalId);
     }
+
     return () => clearInterval(intervalId);
-  }, [startGame]);
+  }, [startGame, countDown]);
   return (
     <div className="px-5 py-3 left-1/2 z-10 top-2 -translate-x-1/2 drop-shadow-lg backdrop-blur-sm absolute text-white text-center ">
       <div className="relative z-10">

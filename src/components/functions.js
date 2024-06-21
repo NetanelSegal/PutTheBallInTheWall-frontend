@@ -168,5 +168,5 @@ export const isGoal = ({ right, left }, [wLeft, wRight], { top, bottom }) => {
         if (right) return 0;
         else if (left) return 1;
     }
-    -1;
+    return -1;
 };
