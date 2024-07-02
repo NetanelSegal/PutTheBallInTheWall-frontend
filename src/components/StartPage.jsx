@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import gameTitleSvg from "../assets/game title.svg";
 
-const StartPage = ({ socket, setRoomName }) => {
+const StartPage = ({ socket, setRoomName, connectionError }) => {
   const [error, setError] = useState(null);
   const refRoomNameInput = useRef();
 
@@ -24,14 +24,16 @@ const StartPage = ({ socket, setRoomName }) => {
         </div>
         <form onSubmit={onSubmit} className="gap-2">
           <input
+            disabled={connectionError}
             ref={refRoomNameInput}
             type="text"
             id="inputRoomName"
             placeholder="Enter room name"
-            className="px-3 py-2 rounded-lg border-2 border-white bg-blue-950"
+            className="px-3 py-2 rounded-lg border-2 border-white bg-blue-950 disabled:opacity-40"
           />
           <button
-            className="px-3 py-2 ml-2 bg-white text-blue-950 rounded-lg"
+            disabled={connectionError}
+            className="px-3 py-2 ml-2 bg-white text-blue-950 rounded-lg disabled:opacity-40"
             type="submit"
           >
             Enter
