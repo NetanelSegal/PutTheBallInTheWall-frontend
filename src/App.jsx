@@ -26,6 +26,7 @@ const App = () => {
     newSocket.on("connect_error", (error) => {
       console.error("Connection failed:", error);
       setError("Coudln't connect to server");
+      return;
     });
     setSocket(newSocket);
     setIsMobile(
@@ -37,9 +38,7 @@ const App = () => {
       newSocket.disconnect();
     };
   }, []);
-  useEffect(() => {
-    console.log(socket);
-  }, [socket]);
+
   return (
     <div className="App">
       {error.length > 0 && <ErrorMessage msg={error} />}
